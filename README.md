@@ -9,3 +9,17 @@ Repository for initiation to wave-resolving modeling (SWASH) in CEE262F Ocean wa
 
 ## On FarmShare
 1. TBD
+
+# How to read SWASH output
+
+## With xarray
+1. Clone ```swash_pp```(credits: Renan Fonseca da Silva) with ```git clone https://github.com/SimonTreillou/swash_pp.git```
+2. Load SWASH output with:
+```
+import numpy as np 
+import matplotlib.pyplot as plt
+import sys
+sys.path.append('your/path/to/swash_pp/src')
+from swash_pp import swash_mat2nc as snc
+ds=snc.mat2nc(path_run="./",run_file="input.sws")
+```
