@@ -1,0 +1,10 @@
+.DS_Store
+*.mat
+*-00*
+norm_end
+*.tbl
+swashinit
+*.png
+*.erf
+*.prt
+output*
