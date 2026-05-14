@@ -5,7 +5,7 @@ Repository for initiation to wave-resolving modeling (SWASH) in CEE262F Ocean wa
 
 ## With Docker (recommended)
 1. Follow instructions in https://hub.docker.com/r/delftwaves/swash, to install Docker.
-2. Run ```docker run --rm -v .:/home/swash delftwaves/swash swashrun -input <SWASH input>```
+2. Run ```docker run --rm -v .:/home/swash delftwaves/swash swashrun -input <SWASH input> -mpi 4``` (in most laptops 4 cores is working fine).
 
 ## On FarmShare
 1. TBD
