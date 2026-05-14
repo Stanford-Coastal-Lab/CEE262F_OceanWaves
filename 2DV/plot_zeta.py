@@ -12,6 +12,18 @@ import matplotlib.pyplot as plt
 import scipy.io
 from pathlib import Path
 
+import numpy as np 
+import matplotlib.pyplot as plt
+import sys
+sys.path.append('/Users/simon/Code/Packages/swash_pp/src')
+from swash_pp import swash_mat2nc as snc
+ds=snc.mat2nc(path_run="../1D/",run_file="input.sws")
+
+
+
+
+#%%
+
 warnings.filterwarnings('ignore')
 
 DIR = Path(__file__).resolve().parent
