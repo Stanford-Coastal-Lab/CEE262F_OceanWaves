@@ -1,60 +1,98 @@
-$*************HEADING****************************************
+$*******************************************************************
+$  SWASH input file
+$  1D planar beach, JONSWAP spectrum
+$  OceanWaves lecture — Simon Treillou
 $
-PROJ 'DUCK94' 'D94'
+$  Domain          : 600 m cross-shore
+$  Bathymetry      : planar 1/50 slope (h_off = 10 m, x_shore = 500 m)
+$  Forcing         : JONSWAP, Hs = 1.0 m, Tp = 10 s, gamma = 3.3
+$  Layers          : 2 (good dispersion up to kh ~ 7)
+$  Breaking        : HSWE switch, alpha = 0.6
+$  Friction        : Manning, n = 0.019 (sandy beach)
+$  Duration        : 30 min (dt = 0.05 s)
 $
-$ DUCK94 2D field experiment. Simulation set by Simon Treillou.
-$
-$***********MODEL INPUT**********************************
-$
-MODE DYN ONED
-$
-SET backvisc=0.0001
-SET seed=12345
-SET level=0.0
-$
-VERTICAL 20 
-$3.64 4.81 5.83 6.65 7.19 7.5 7.52 7.35 6.98 6.48 5.92 5.32 4.76 4.23 3.77 3.39 3.1 2.86 2.7
-$
-CGRID 100. 0. 0. 381. 0. 761 0
-$
-INPGRID BOTTOM 100. 0. 0. 761 0 0.5 0.
-READINP BOTTOM 1. 'planar_s002.bot' 1 0 FREE
-$
-INIT zero
-$
-BOU SHAPESPEC JONSWAP 2.0 SIG PEAK DSPR DEGREES
-BOU SIDE E CCW BTYPE WEAK SMOO 10 SEC CON SPECT 1.6 6.6 0.0 CYCLE 3600 SEC
-BOU SIDE W CCW BTYPE RADIATION
-$
-VISC Vertical KEPS
-FRIC LOG ROUGH 0.001
-NONHYDROSTATIC STANDARD PREC ILU
-$
-DISCRET UPW UMOM MOM HORIZONTAL QUICK
-DISCRET UPW WMOM HORIZONTAL QUICK
-DISCRET UPW UMOM MOM VERT QUICK
-DISCRET UPW WMOM VERT QUICK
-DISCRET CORRDEP MUS
-$
-TIMEI 0.1 0.5
-$
-$************ OUTPUT REQUESTS *************************
-$
-QUANT XP HEXP 10.
-QUANT HS SETUP DUR 10 MIN
-QUANT MVKSIK DUR 10 MIN
-$
-FRAME 'GRID'   100. 0. 0. 381. 0. 761  0
-BLOCK 'GRID'   NOHEAD 'u.mat' LAY 3 XP BOTL VKSIK OUTPUT 000000.000 0.5 SEC
-BLOCK 'GRID'   NOHEAD 'zeta.mat' LAY 3 XP BOTL WATL OUTPUT 000000.000 0.5 SEC
-BLOCK 'GRID'   NOHEAD 'tke.mat' LAY 3 XP BOTL TKE OUTPUT 000000.000 0.5 SEC
-BLOCK 'GRID'   NOHEAD 'Akv.mat' LAY 3 XP BOTL VISC OUTPUT  000000.000 0.5 SEC
-BLOCK 'GRID'   NOHEAD 'eps.mat' LAY 3 XP BOTL EPS OUTPUT  000000.000 0.5 SEC
-TABLE 'GRID'   NOHEAD   'umean.mat' MVKSIK 
-TABLE 'GRID'   NOHEAD   'hs.mat' XP HS
-POINTS 'GAUGE' FILE 'stations.loc'
-TABLE  'GAUGE' NOHEAD 'stations.tbl' TSEC XP BOTL WATL VKSIK OUTPUT 000000.000 0.5 SEC
-$
-TEST 1 0
-COMPUTE 000000.000 0.005 SEC 001000.000
+$  Companion: make_bathy.py generates bot.txt
+$*******************************************************************
+
+PROJECT 'jonswap1D' '01' &
+        'Planar 1D beach, JONSWAP forcing'
+
+$-- run mode
+MODE NONSTATIONARY ONEDIMENSIONAL
+COORDINATES CARTESIAN
+
+$-- computational grid
+$   600 m long, dx = 1 m  →  600 cells (mxc = 600, myc = 0 for 1D)
+CGRID REGULAR 0. 0. 0. 600. 0. 600 0
+
+$-- vertical resolution
+$   2 layers: dispersion accurate up to kh ~ 7 (Stelling-Zijlema compact)
+VERTICAL 2
+
+$-- bathymetry input
+$   INPGRID matches the computational grid in 1D (601 nodes)
+INPGRID BOTTOM REGULAR 0. 0. 0. 600 0 1. 0.
+READINP BOTTOM 1. 'bot.txt' 4 0 FREE
+
+$-- initial condition: still water (default — no INIT command)
+
+$-- JONSWAP boundary spectrum
+$   PEAK     : Tp is peak period (MEAN would mean mean period)
+$   DSPR PWR : cos^m directional spreading via integer power m
+BOUND SHAPESPEC JONSWAP 3.3 PEAK DSPR POWER
+
+$-- west boundary: weakly reflective, 30 s smooth start-up,
+$   irregular spectrum (Hs=1, Tp=10, theta=0, ms=4)
+$   NOTE — in SWASH 11.x, the parametric form is "CON SPEC ..."
+$          (the old "CON PAR ..." keyword was removed)
+BOUNDCOND SIDE W BTYPE WEAK SMOOTHING 30 SEC CONSTANT SPECTRUM 1.0 10. 0. 4.
+
+$-- bottom friction
+FRICTION MANNING 0.019
+
+$-- depth-induced breaking via the hydrostatic switch (alpha = 0.6)
+BREAK 0.6
+
+$-- non-hydrostatic pressure (Keller-box compact)
+NONHYDROSTATIC BOX 1.
+
+$-- numerics: upwind momentum, depth-corrected pressure
+DISCRETIZATION UPW MOMENTUM
+DISCRETIZATION CORRDEP
+
+$===================================================================
+$  OUTPUT
+$===================================================================
+
+$-- wave gauges (offshore → shoreline)
+POINTS 'g050'  50.  0.
+POINTS 'g100' 100.  0.
+POINTS 'g200' 200.  0.
+POINTS 'g300' 300.  0.
+POINTS 'g400' 400.  0.
+POINTS 'g450' 450.  0.
+POINTS 'g480' 480.  0.
+
+$-- time series at each gauge (η and depth-averaged velocity)
+TABLE 'g050' NOHEAD 'g050.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
+TABLE 'g100' NOHEAD 'g100.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
+TABLE 'g200' NOHEAD 'g200.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
+TABLE 'g300' NOHEAD 'g300.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
+TABLE 'g400' NOHEAD 'g400.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
+TABLE 'g450' NOHEAD 'g450.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
+TABLE 'g480' NOHEAD 'g480.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
+
+$-- full free-surface field — snapshots every 1 s after a 60 s spinup
+BLOCK 'COMPGRID' NOHEAD 'wlev.mat' LAYOUT 3 WATL &
+      OUTPUT 000100.000 1. SEC
+BLOCK 'COMPGRID' NOHEAD 'vel.mat' LAYOUT 3 VELK VEL &
+      OUTPUT 000100.000 1. SEC
+$===================================================================
+$  RUN
+$===================================================================
+
+$-- 30-min simulation, dt = 0.05 s  (CFL_long ≈ 0.5 in deep end)
+COMPUTE NONSTATIONARY 000000.000 0.05 SEC 003000.000
+
 STOP
+

@@ -8,3 +8,11 @@ swashinit
 *.erf
 *.prt
 output*
+*.dat
+*.bot
+bot.txt
+__pycache__
+INPUT
+plb
+machinefile
+swash.exe
