@@ -9,3 +9,12 @@ Repository for initiation to wave-resolving modeling (SWASH) in CEE262F Ocean wa
 
 ## On FarmShare
 1. TBD
+
+# How to create bathymetry
+
+In both 2DV and planarbeach directories, just run ```python3 make_bathy.py```in your terminal.
+
+# How to read SWASH output
+
+You can see instantaneous free surface and velocities using ```python3 plot_eta.py``` or ```python3 plot_u.py```. 
+
