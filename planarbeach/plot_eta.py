@@ -19,7 +19,6 @@ DX, DY  = 2.0, 2.0
 L_DOM, W_DOM = 600.0, 200.0
 ETA_MAX = 1.0             # colour-scale half-range              [m]
 WLEVFILE = "wlev.mat"
-BOTFILE  = "bot.txt"
 
 # -------------------------------------------------------------- helpers
 def parse_swash_time(key):
@@ -46,12 +45,13 @@ def pick_snapshot(matfile, prefixes, t_target):
     return np.array(data[keys[idx]]), times[idx], keys[idx]
 
 # -------------------------------------------------------------- load
-zb = np.loadtxt(BOTFILE)                  # (ny, nx)
-ny, nx = zb.shape
+
+eta, t_now, key = pick_snapshot(WLEVFILE, ["Watl", "watl"], T_PLOT)
+ny, nx = eta.shape
+zb=eta
 x = np.arange(nx) * DX
 y = np.arange(ny) * DY
 
-eta, t_now, key = pick_snapshot(WLEVFILE, ["Watl", "watl"], T_PLOT)
 if eta.shape != zb.shape:
     eta = eta.reshape(zb.shape)
 
@@ -62,23 +62,15 @@ eta_m = np.ma.masked_where(dry, eta)
 print(f"plotting η  at t = {t_now:.1f} s   (key '{key}')")
 
 # -------------------------------------------------------------- plot
-fig, ax = plt.subplots(figsize=(11, 4.6))
+fig, ax = plt.subplots(figsize=(11, 7))
 
 pcm = ax.pcolormesh(x, y, eta_m, cmap="RdBu_r",
                     vmin=-ETA_MAX, vmax=ETA_MAX, shading="auto")
-# shoreline contour (z_b = 0)
-ax.contour(x, y, zb, levels=[0.], colors="black", linewidths=1.0)
-
-# always-dry land overlay (brown)
-dry_overlay = np.ma.masked_where(zb >= 0., np.ones_like(zb))
-ax.pcolormesh(x, y, dry_overlay, cmap="copper", alpha=0.55, shading="auto")
 
 ax.set_xlabel("x  (cross-shore)  [m]")
 ax.set_ylabel("y  (alongshore)   [m]")
 ax.set_title(rf"$\eta(x, y)$  at  $t$ = {t_now:.1f} s",loc='left')
-ax.set_aspect("equal")
 cb = fig.colorbar(pcm, ax=ax, label="η  [m]")
-fig.tight_layout()
 
 fname = f"eta2D_t{int(round(t_now)):04d}.png"
 fig.savefig(fname, dpi=130)
