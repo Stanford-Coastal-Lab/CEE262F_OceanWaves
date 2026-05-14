@@ -22,28 +22,15 @@ BOUND SIDE West CCW BTYPE WEAK ADDB CON SPECTrum h=0.85 per=15. dir=10. dd=20. c
 DISCRET UPW  MOM
 DISCRET UPW WMOM H NONE
 
-$===================================================================
-$  OUTPUT
-$===================================================================
+!************* OUTPUT REQUESTS ************************************
 
-$-- explicit duration for time avg.
 QUANT DIST HEXP 10.
-QUANT HS SETUP MVKSI MVETA DUR 20 MIN
+QUANT HS MVEL DUR 20 MIN
 
-$-- a few gauges at mid-y (y = 100 m) for time-series spot-checks
-POINTS 'g050' 50.  100.
-POINTS 'g100' 100. 100.
-POINTS 'g200' 200. 100.
-POINTS 'g300' 300. 100.
-POINTS 'g400' 400. 100.
-POINTS 'g450' 450. 100.
+CURVE 'transect' 0. 100. 1000 1000. 100.
+TABLE 'transect' NOHEAD 'output.txt' DIST BOTLEV HS SETUP MVEL
 
-TABLE 'g050' NOHEAD 'g050.dat' TSEC WATL VEL OUTPUT 000000.000 0.5 SEC
-TABLE 'g100' NOHEAD 'g100.dat' TSEC WATL VEL OUTPUT 000000.000 0.5 SEC
-TABLE 'g200' NOHEAD 'g200.dat' TSEC WATL VEL OUTPUT 000000.000 0.5 SEC
-TABLE 'g300' NOHEAD 'g300.dat' TSEC WATL VEL OUTPUT 000000.000 0.5 SEC
-TABLE 'g400' NOHEAD 'g400.dat' TSEC WATL VEL OUTPUT 000000.000 0.5 SEC
-TABLE 'g450' NOHEAD 'g450.dat' TSEC WATL VEL OUTPUT 000000.000 0.5 SEC
+BLOCK 'COMPGRID' NOHEAD 'output.mat' LAY 3 XP YP BOTLEV MVEL
 
 $-- 2D snapshots: WATL, VEL  every 5 s after 100 s spinup
 BLOCK 'COMPGRID' NOHEAD 'wlev.mat' LAYOUT 3 WATL &
@@ -51,16 +38,6 @@ BLOCK 'COMPGRID' NOHEAD 'wlev.mat' LAYOUT 3 WATL &
 BLOCK 'COMPGRID' NOHEAD 'vel.mat'  LAYOUT 3 VEL  &
       OUTPUT 000100.000 5. SEC
 
-$-- SWASH-internal time-mean fields (Hs, setup, mean velocities)
-$   averaged from t = 0; in post-processing, prefer mean over the late
-$   snapshot files which avoids the spinup bias
-BLOCK 'COMPGRID' NOHEAD 'mean.mat' LAYOUT 3 HS SETUP MVKSI MVETA &
-      OUTPUT 002959.000 1. SEC
-
-$===================================================================
-$  RUN — 30 min, dt = 0.05 s  (CFL_long ≈ 0.5 in deep end)
-$===================================================================
-COMPUTE NONSTATIONARY 000000.000 0.05 SEC 003000.000
+COMPUTE 000000.000 0.05 SEC 001500.000
 
 STOP
-

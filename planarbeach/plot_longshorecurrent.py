@@ -28,8 +28,7 @@ T_SPINUP = 600.0          # discard everything before this time     [s]
 DX, DY   = 2.0, 2.0
 L_DOM    = 600.0
 X_SHR    = 500.0
-VELFILE  = "vel.mat"
-BOTFILE  = "bot.txt"
+VELFILE  = "output.mat"
 
 # -------------------------------------------------------------- helpers
 def parse_swash_time(key):
@@ -53,38 +52,16 @@ def collect_snapshots(matfile, prefixes, t_min):
     return times, keys, data
 
 # -------------------------------------------------------------- load
-zb = np.loadtxt(BOTFILE)
-ny, nx = zb.shape
-x = np.arange(nx) * DX
-
 t_u, keys_u, data = collect_snapshots(VELFILE,
     ("vel_x_", "Velkx", "Velx_", "Vksix", "Vx_"), T_SPINUP)
 t_v, keys_v, _    = collect_snapshots(VELFILE,
     ("vel_y_", "Velky", "Vely_", "Vksiy", "Vy_"), T_SPINUP)
+zb = data['Botlev']
+ny, nx = zb.shape
+x = np.arange(nx) * DX
 
-if not keys_u or not keys_v:
-    raise SystemExit(f"No velocity snapshots past T_SPINUP = {T_SPINUP} s")
-
-print(f"averaging {len(keys_u)} u-snapshots and {len(keys_v)} v-snapshots "
-      f"from t ∈ [{t_u.min():.0f}, {t_u.max():.0f}] s")
-
-# -------------------------------------------------------------- average
-# For each snapshot: average over y; then average over time.
-def reduce_yt(keys, data, shape):
-    accum = np.zeros(shape[1])
-    n = 0
-    for k in keys:
-        arr = np.array(data[k])
-        if arr.shape != shape:
-            arr = arr.reshape(shape)
-        # mask dry cells (bed above SWL) before averaging
-        m = np.ma.masked_where(-zb < 0., arr)
-        accum += m.mean(axis=0).filled(0.)
-        n += 1
-    return accum / n
-
-U_mean = reduce_yt(keys_u, data, zb.shape)
-V_mean = reduce_yt(keys_v, data, zb.shape)
+U_mean = np.mean(data['Mvel_x'],axis=0)
+V_mean = np.mean(data['Mvel_y'],axis=0)
 
 print(f"V_max = {V_mean.max():.2f} m/s  at  x = {x[np.argmax(V_mean)]:.0f} m")
 print(f"U_max = {abs(U_mean).max():.2f} m/s  (cross-shore mean — undertow + setup)")
@@ -101,11 +78,6 @@ ax_v.set_ylabel(r"$\langle v \rangle$   [m/s]")
 ax_v.grid(alpha=0.3)
 ax_v.legend(loc="upper left", fontsize=9)
 
-for a in (ax_v,):
-    a.axvline(X_SHR, color="#5B6B7C", lw=0.8, ls=":", alpha=0.7)
-    a.set_xlim(0., L_DOM)
-ax_v.text(X_SHR + 4, ax_v.get_ylim()[1] * 0.9, "shoreline",
-          color="#5B6B7C", fontsize=8, style="italic")
 
 fig.tight_layout()
 fig.savefig("longshore_current.png", dpi=140)
