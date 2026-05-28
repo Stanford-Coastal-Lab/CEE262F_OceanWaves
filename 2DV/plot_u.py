@@ -17,9 +17,8 @@ import matplotlib.pyplot as plt
 # ── params (must match input.sws) ──────────────────────────────────────
 T_START  = 100.0    # first output time [s]  (OUTPUT 000100.000)
 DT_OUT   = 1.0      # output interval   [s]
-NLEV     = 2        # VERTICAL 2 in input.sws
 DX       = 1.0      # grid spacing      [m]
-T_PLOT   = 500.0    # requested snapshot time [s]
+T_PLOT   = 400.0    # requested snapshot time [s] (relative to T_START)
 T_PLOT   = T_START + T_PLOT  # absolute time to plot
 
 # ── bathymetry ──────────────────────────────────────────────────────────
@@ -41,20 +40,27 @@ times  = T_START + np.arange(n_times) * DT_OUT
 it = int(np.argmin(np.abs(times - T_START - T_PLOT)))
 
 # ── velocity:  vel.txt ────────────────────────────────────────────────
-# per time step: NLEV rows of VELK + 1 row of VEL  →  (NLEV+1)*nx values
-vals_v  = read_block("vel.txt")
-n_times_v = len(vals_v) // ((NLEV + 1) * nx)
-vel_raw = vals_v.reshape(n_times_v, NLEV + 1, nx)
+# SWASH BLOCK layout per time step with 'VELK VEL':
+#   VELK: 2*NLEV rows alternating  u_k1, v_k1, u_k2, v_k2, ..., u_kN, v_kN
+#   VEL:  1 row  — depth-averaged velocity magnitude
+#   total rows per time step = 2*NLEV + 1
+# (v is zero in 1D but SWASH always writes both components)
+vals_v     = read_block("vel.txt")
+rows_per_t = len(vals_v) // (n_times * nx)   # = 2*NLEV + 1
+NLEV       = (rows_per_t - 1) // 2           # auto-detected number of layers
+vel_raw    = vals_v.reshape(n_times, rows_per_t, nx)
 
-velk = vel_raw[:, :NLEV, :]              # (n_times, NLEV, nx) per-layer
-vel  = vel_raw[:, NLEV,  :]              # (n_times, nx) depth-averaged
+velk_u = vel_raw[:, 0:2*NLEV:2, :]   # (n_times, NLEV, nx) cross-shore velocity
+velk_v = vel_raw[:, 1:2*NLEV:2, :]   # (n_times, NLEV, nx) along-shore (0 in 1D)
+vel    = vel_raw[:, 2*NLEV,     :]   # (n_times, nx)        depth-averaged magnitude
 
 # ── quick check ─────────────────────────────────────────────────────────
 print(f"x      : {x.shape}   {x[0]:.0f} – {x[-1]:.0f} m")
 print(f"times  : {times.shape}   {times[0]:.1f} – {times[-1]:.1f} s")
 print(f"wlev   : {wlev.shape}")
-print(f"velk   : {velk.shape}   (n_times, n_layers, nx)")
-print(f"vel    : {vel.shape}    (n_times, nx) depth-averaged")
+print(f"NLEV   : {NLEV}   (auto-detected)")
+print(f"velk_u : {velk_u.shape}   (n_times, n_layers, nx) cross-shore")
+print(f"vel    : {vel.shape}    (n_times, nx) depth-averaged magnitude")
 
 #%% PLOT
 fig, ax = plt.subplots(figsize=(6, 3),dpi=300)
@@ -74,4 +80,3 @@ fname = f"u_t{int(round(T_PLOT)):04d}.png"
 fig.savefig(fname, dpi=140)
 print(f"wrote {fname}")
 plt.show()
-# %%
