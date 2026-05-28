@@ -1,87 +1,63 @@
 #!/usr/bin/env python3
 """
-plot_longshore_current.py
-Time- and alongshore-averaged cross-shore profiles  U(x)  and  V(x).
-
-This is the canonical diagnostic for the oblique-wave longshore-current case:
-    V_LH(x) = <v(x, y, t)>_{y, t}        with t > T_SPINUP
-              and y averaged over the full periodic domain.
+plot_longshorecurrent.py — 2DH planar beach
+Cross-shore view of time-averaged longshore current v(x, y) at chosen time.
 
 Reads:
-    vel.mat   — SWASH BLOCK output (LAYOUT 3, VEL)
-    bot.txt   — 2D bottom level
-
-Notes:
-- The first T_SPINUP seconds of snapshots are discarded so that wave
-  startup and the IG-wave reflection at the shoreline don't pollute
-  the mean.
-- Edit T_SPINUP if your run is shorter / longer.
+    vel.txt   — merged SWASH BLOCK ASCII output (run merge_output.py first)
+                flat array: n_times × 2 × NY × NX values, 6 per line
+                var 0 = cross-shore velocity u  [m/s]
+                var 1 = along-shore  velocity v  [m/s]
+    wlev.txt  — for water level overlay (same format, 1 var)
 """
 #%%
-import re
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.io import loadmat
 
-# -------------------------------------------------------------- params
-T_SPINUP = 600.0          # discard everything before this time     [s]
-DX, DY   = 2.0, 2.0
-L_DOM    = 600.0
-X_SHR    = 500.0
-VELFILE  = "output.mat"
+# ── params (match input.sws) ────────────────────────────────────────────
+T_START  = 100.0
+DT_OUT   = 5.0
+MXC, MYC = 220, 284
+XLENC, YLENC = 220., 284.
+V_MAX    = 0.5            # colour-scale half-range [m/s]
 
-# -------------------------------------------------------------- helpers
-def parse_swash_time(key):
-    m = re.search(r"_(\d{2})(\d{2})(\d{2})(?:_(\d{1,3}))?$", key)
-    if not m:
-        return None
-    h, mn, s, sub = m.groups()
-    t = int(h)*3600 + int(mn)*60 + int(s)
-    if sub:
-        t += int(sub) / 10**len(sub)
-    return t
+NX = MXC + 1
+NY = MYC + 1
+x  = np.linspace(0., XLENC, NX)
+y  = np.linspace(0., YLENC, NY)
 
-def collect_snapshots(matfile, prefixes, t_min):
-    """Return (times, keys, data_dict) for snapshots after t_min."""
-    data = loadmat(matfile)
-    keys = [k for k in data.keys()
-            if any(k.lower().startswith(p.lower()) for p in prefixes)]
-    keys = sorted(keys, key=parse_swash_time)
-    keys = [k for k in keys if parse_swash_time(k) >= t_min]
-    times = np.array([parse_swash_time(k) for k in keys])
-    return times, keys, data
+# ── helper ───────────────────────────────────────────────────────────────
+def read_block(path):
+    with open(path) as f:
+        return np.fromstring(f.read(), sep=' ')
 
-# -------------------------------------------------------------- load
-t_u, keys_u, data = collect_snapshots(VELFILE,
-    ("vel_x_", "Velkx", "Velx_", "Vksix", "Vx_"), T_SPINUP)
-t_v, keys_v, _    = collect_snapshots(VELFILE,
-    ("vel_y_", "Velky", "Vely_", "Vksiy", "Vy_"), T_SPINUP)
-zb = data['Botlev']
-ny, nx = zb.shape
-x = np.arange(nx) * DX
+# ── read vel.txt ──────────────────────────────────────────────────────────
+# layout: n_times × 2 × NY × NX  (var 0 = u, var 1 = v)
+vals    = read_block("vel.txt")
+n_times = len(vals) // (2 * NY * NX)
+vel     = vals.reshape(n_times, 2, NY, NX)
+times   = T_START + np.arange(n_times) * DT_OUT
 
-U_mean = np.mean(data['Mvel_x'],axis=0)
-V_mean = np.mean(data['Mvel_y'],axis=0)
+Vmean = vel[:,1,:,:].mean(axis=(0,1))  # time-averaged along-shore velocity (NY, NX)
 
-print(f"V_max = {V_mean.max():.2f} m/s  at  x = {x[np.argmax(V_mean)]:.0f} m")
-print(f"U_max = {abs(U_mean).max():.2f} m/s  (cross-shore mean — undertow + setup)")
+print(f"vel    : {vel.shape}   (n_times={n_times}, 2 vars, NY={NY}, NX={NX})")
+print(f"t range: {times[0]:.0f} – {times[-1]:.0f} s")
 
-# -------------------------------------------------------------- plot
-fig, ax_v = plt.subplots(1,1, figsize=(6, 3), dpi=300,
-                                  gridspec_kw={"hspace": 0.08})
+#%% PLOTTING
+fig, ax = plt.subplots(figsize=(7,4), dpi=300)
 
-# longshore current — the main quantity
-ax_v.plot(x, V_mean, color="#E76F51", lw=2.0,
-          label=r"$\langle v \rangle_{y,t}$  (longshore)")
-ax_v.set_xlabel("x  (cross-shore)  [m]")
-ax_v.set_ylabel(r"$\langle v \rangle$   [m/s]")
-ax_v.grid(alpha=0.3)
-ax_v.legend(loc="upper left", fontsize=9)
+pcm = ax.plot(x, Vmean,lw=3,alpha=0.8,color='red')
 
+ax.set_xlabel("x  (cross-shore)  [m]")
+ax.set_ylabel(r"$\overline{V}(x)$  [m/s]")
+ax.set_title(rf"Longshore current", loc="left")
+ax.set_xlim(0., XLENC)
+ax.set_ylim(0., V_MAX)
+ax.grid()
 
 fig.tight_layout()
-fig.savefig("longshore_current.png", dpi=140)
-print("wrote longshore_current.png")
+fname = f"Vmean.png"
+fig.savefig(fname, dpi=130)
+print(f"wrote {fname}")
 plt.show()
-
 # %%

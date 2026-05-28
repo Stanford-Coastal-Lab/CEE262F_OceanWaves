@@ -1,43 +1,70 @@
-!************* HEADING ********************************************
-!
-!  tutorial: oblique directional spread waves over 2D sloping beach
-!
-!*********** MODEL INPUT ******************************************
+$*******************************************************************
+$  SWASH input file
+$  2D planar beach, JONSWAP spectrum
+$  Oblique directional spread waves over 2D sloping beach (inspired
+$  by SWASH tutorial)
+$
+$  Domain          : 220 m cross-shore x 284 m longshore
+$  Bathymetry      : planar, h_off = 6 m
+$  Forcing         : JONSWAP, Hs = 0.85 m, Tp = 10 s, angle = 15°
+$  Friction        : Manning, n = 0.019 (sandy beach)
+$  Duration        : 15 min (dt = 0.05 s)
+$
+$*******************************************************************
 
-CGRID  0. 0. 0. 220. 200. 1000 50 REPEAT Y
+PROJECT 'planarbeach' '01' &
+        'Planar 2D beach, JONSWAP forcing'
 
-INPGRID BOTTOM 0. 0. 0. 1 1 220. 200.
+$-- computational grid
+CGRID  0. 0. 0. 220. 284. 220 284 REPEAT Y
+
+$-- vertical resolution
+$ VERTICAL 1
+
+$-- bathymetry input
+INPGRID BOTTOM 0. 0. 0. 1 1 220. 284.
 READINPUT BOTTOM 1. 'bathy.txt' 1 0 FREE
 
-NONHYDROSTATIC
-BREAK
-$FRIC MANNING 0.02
-FRIC LOG ROUGH 0.001
-VISC SMAG
+$-- initial condition: still water
+INIT ZERO
 
+$-- JONSWAP boundary spectrum
+$   SEED is fixed for reproducibility of random wave phases
 SET SEED 123456789
 BOUND SHAPE JONSWAP SIG PEAK DSPR DEGRees
-BOUND SIDE West CCW BTYPE WEAK ADDB CON SPECTrum h=0.85 per=15. dir=10. dd=20. cycle 20 min
+BOUND SIDE West CCW BTYPE WEAK ADDB CON SPECTrum h=0.85 per=10. dir=15. dd=0. cycle 20 min
 
-DISCRET UPW  MOM
+$-- bottom friction
+FRIC MANNING 0.02
+
+$-- depth-induced breaking via the hydrostatic front approxmation (alpha = 0.6)
+BREAK 0.6
+
+$-- non-hydrostatic pressure (Keller-box compact when few vertical layers, standard with more)
+$-- NONHYDROSTATIC STANDARD PREC ILU
+NONHYDROSTATIC BOX
+
+$-- viscosity
+VISC SMAG
+
+$-- numerics: upwind momentum, depth-corrected pressure
+DISCRETIZATION UPW MOMENTUM
+DISCRETIZATION CORRDEP
 DISCRET UPW WMOM H NONE
 
-!************* OUTPUT REQUESTS ************************************
-
-QUANT DIST HEXP 10.
-QUANT HS MVEL DUR 20 MIN
-
-CURVE 'transect' 0. 100. 1000 1000. 100.
-TABLE 'transect' NOHEAD 'output.txt' DIST BOTLEV HS SETUP MVEL
-
-BLOCK 'COMPGRID' NOHEAD 'output.mat' LAY 3 XP YP BOTLEV MVEL
-
+$===================================================================
+$  OUTPUT
+$===================================================================
 $-- 2D snapshots: WATL, VEL  every 5 s after 100 s spinup
-BLOCK 'COMPGRID' NOHEAD 'wlev.mat' LAYOUT 3 WATL &
+BLOCK 'COMPGRID' NOHEAD 'wlev.txt' LAYOUT 3 WATL &
       OUTPUT 000100.000 5. SEC
-BLOCK 'COMPGRID' NOHEAD 'vel.mat'  LAYOUT 3 VEL  &
+BLOCK 'COMPGRID' NOHEAD 'vel.txt'  LAYOUT 3 VEL  &
       OUTPUT 000100.000 5. SEC
 
+$===================================================================
+$  RUN
+$===================================================================
+$-- 15-min simulation, dt = 0.05 s
 COMPUTE 000000.000 0.05 SEC 001500.000
 
 STOP
