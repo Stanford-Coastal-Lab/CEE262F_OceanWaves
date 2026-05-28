@@ -1,12 +1,11 @@
 $*******************************************************************
 $  SWASH input file
 $  1D planar beach, JONSWAP spectrum
-$  OceanWaves lecture — Simon Treillou
 $
 $  Domain          : 600 m cross-shore
 $  Bathymetry      : planar 1/50 slope (h_off = 10 m, x_shore = 500 m)
 $  Forcing         : JONSWAP, Hs = 1.0 m, Tp = 10 s, gamma = 3.3
-$  Layers          : 2 (good dispersion up to kh ~ 7)
+$  Layers          : 2
 $  Breaking        : HSWE switch, alpha = 0.6
 $  Friction        : Manning, n = 0.019 (sandy beach)
 $  Duration        : 30 min (dt = 0.05 s)
@@ -22,11 +21,10 @@ MODE NONSTATIONARY ONEDIMENSIONAL
 COORDINATES CARTESIAN
 
 $-- computational grid
-$   600 m long, dx = 1 m  →  600 cells (mxc = 600, myc = 0 for 1D)
+$   600 m long, dx = 1 m  600 cells (mxc = 600, myc = 0 for 1D)
 CGRID REGULAR 0. 0. 0. 600. 0. 600 0
 
 $-- vertical resolution
-$   2 layers: dispersion accurate up to kh ~ 7 (Stelling-Zijlema compact)
 VERTICAL 2
 
 $-- bathymetry input
@@ -34,23 +32,21 @@ $   INPGRID matches the computational grid in 1D (601 nodes)
 INPGRID BOTTOM REGULAR 0. 0. 0. 600 0 1. 0.
 READINP BOTTOM 1. 'bot.txt' 4 0 FREE
 
-$-- initial condition: still water (default — no INIT command)
+$-- initial condition: still water
+INIT ZERO
 
 $-- JONSWAP boundary spectrum
 $   PEAK     : Tp is peak period (MEAN would mean mean period)
-$   DSPR PWR : cos^m directional spreading via integer power m
 BOUND SHAPESPEC JONSWAP 3.3 PEAK DSPR POWER
 
-$-- west boundary: weakly reflective, 30 s smooth start-up,
+$-- west boundary: weakly reflective, 30s smooth start-up,
 $   irregular spectrum (Hs=1, Tp=10, theta=0, ms=4)
-$   NOTE — in SWASH 11.x, the parametric form is "CON SPEC ..."
-$          (the old "CON PAR ..." keyword was removed)
-BOUNDCOND SIDE W BTYPE WEAK SMOOTHING 30 SEC CONSTANT SPECTRUM 1.0 10. 0. 4.
+BOUNDCOND SIDE W BTYPE WEAK SMOOTHING 30 SEC CONSTANT SPECTRUM 1.0 10. 0. 0.
 
 $-- bottom friction
 FRICTION MANNING 0.019
 
-$-- depth-induced breaking via the hydrostatic switch (alpha = 0.6)
+$-- depth-induced breaking via the hydrostatic front approxmation (alpha = 0.6)
 BREAK 0.6
 
 $-- non-hydrostatic pressure (Keller-box compact)
@@ -63,8 +59,7 @@ DISCRETIZATION CORRDEP
 $===================================================================
 $  OUTPUT
 $===================================================================
-
-$-- wave gauges (offshore → shoreline)
+$-- wave gauges (offshore to shoreline)
 POINTS 'g050'  50.  0.
 POINTS 'g100' 100.  0.
 POINTS 'g200' 200.  0.
@@ -73,7 +68,7 @@ POINTS 'g400' 400.  0.
 POINTS 'g450' 450.  0.
 POINTS 'g480' 480.  0.
 
-$-- time series at each gauge (η and depth-averaged velocity)
+$-- time series at each gauge (water level and depth-averaged velocity)
 TABLE 'g050' NOHEAD 'g050.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
 TABLE 'g100' NOHEAD 'g100.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
 TABLE 'g200' NOHEAD 'g200.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
@@ -82,17 +77,14 @@ TABLE 'g400' NOHEAD 'g400.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
 TABLE 'g450' NOHEAD 'g450.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
 TABLE 'g480' NOHEAD 'g480.dat' TSEC WATL VEL OUTPUT 000000.000 0.2 SEC
 
-$-- full free-surface field — snapshots every 1 s after a 60 s spinup
-BLOCK 'COMPGRID' NOHEAD 'wlev.mat' LAYOUT 3 WATL &
+$-- full free-surface field with snapshots every 1s after a 60s spinup
+BLOCK 'COMPGRID' NOHEAD 'wlev.txt' LAYOUT 3 WATL &
       OUTPUT 000100.000 1. SEC
-BLOCK 'COMPGRID' NOHEAD 'vel.mat' LAYOUT 3 VELK VEL &
+BLOCK 'COMPGRID' NOHEAD 'vel.txt' LAYOUT 3 VELK VEL &
       OUTPUT 000100.000 1. SEC
 $===================================================================
 $  RUN
 $===================================================================
-
-$-- 30-min simulation, dt = 0.05 s  (CFL_long ≈ 0.5 in deep end)
+$-- 30-min simulation, dt = 0.05 s
 COMPUTE NONSTATIONARY 000000.000 0.05 SEC 003000.000
-
 STOP
-
